@@ -1,0 +1,195 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums removed for SQLite compatibility
+// UserRole: MASTER_ADMIN, TENANT_ADMIN, TENANT_USER
+// CallStatus: COMPLETED, MISSED, VOICEMAIL, IN_PROGRESS, FAILED
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  users       User[]
+  agentConfig AgentConfig?
+  callLogs    CallLog[]
+  contacts    Contact[]
+  leads       Lead[]
+  tasks       Task[]
+  services    Service[]
+  appointments Appointment[]
+  availabilities Availability[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed password
+  role      String   @default("TENANT_USER") // MASTER_ADMIN, TENANT_ADMIN, TENANT_USER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tasks     Task[]
+}
+
+model AgentConfig {
+  id           String   @id @default(uuid())
+  systemPrompt String   @default("You are a helpful assistant.")
+  voiceId      String   @default("aura-asteria-en") // Deepgram voice ID default
+  welcomeMessage String @default("Hello! I am an AI assistant. How can I help you?")
+  integrations String   @default("{}") // JSON string for API keys/config (Calendar, ordering, etc)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  tenantId     String   @unique
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model CallLog {
+  id           String     @id @default(uuid())
+  fromNumber   String
+  toNumber     String
+  direction    String     @default("inbound") // inbound, outbound
+  startTime    DateTime   @default(now())
+  endTime      DateTime?
+  duration     Int?       // In seconds
+  status       String     @default("IN_PROGRESS") // COMPLETED, MISSED, VOICEMAIL, IN_PROGRESS, FAILED
+  recordingUrl String?
+  summary      String?
+  transcript   String?
+  
+  createdAt    DateTime   @default(now())
+
+  // Relations
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  contactId    String?
+  contact      Contact?   @relation(fields: [contactId], references: [id])
+  leadId       String?
+  lead         Lead?      @relation(fields: [leadId], references: [id])
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  firstName String?
+  lastName  String?
+  email     String?
+  phone     String   // Normalized phone number
+  notes     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  callLogs  CallLog[]
+  leads     Lead[]
+  appointments Appointment[]
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("NEW") // NEW, CONTACTED, QUALIFIED, CLOSED_WON, CLOSED_LOST
+  value       Float?
+  source      String   @default("VOICE_AGENT")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  contactId   String?
+  contact     Contact?  @relation(fields: [contactId], references: [id])
+  callLogs    CallLog[]
+  tasks       Task[]
+  appointments Appointment[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  dueDate     DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id])
+  assignedTo  String?
+  assignee    User?     @relation(fields: [assignedTo], references: [id])
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  duration    Int      @default(60) // in minutes
+  price       Float?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+}
+
+model Appointment {
+  id            String   @id @default(uuid())
+  startTime     DateTime
+  endTime       DateTime
+  status        String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELED, NO_SHOW
+  notes         String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  serviceId     String?
+  service       Service?  @relation(fields: [serviceId], references: [id])
+  contactId     String?
+  contact       Contact?  @relation(fields: [contactId], references: [id])
+  leadId        String?
+  lead          Lead?     @relation(fields: [leadId], references: [id])
+}
+
+model Availability {
+  id          String   @id @default(uuid())
+  dayOfWeek   Int      // 0=Sun, 1=Mon, etc.
+  startTime   String   // "09:00"
+  endTime     String   // "17:00"
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  
+  @@unique([tenantId, dayOfWeek])
+}
