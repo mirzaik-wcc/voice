@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 
 export async function POST(request: Request) {
     try {
+        console.log('Voice config API called');
         // Voximplant will send metadata about the call
         const body = await request.json()
         const { from, to, callId } = body
@@ -122,6 +123,7 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error('Config Error:', error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 })
     }
 }
