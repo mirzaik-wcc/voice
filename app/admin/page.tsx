@@ -58,9 +58,20 @@ export default async function AdminDashboard() {
                                         <div className="text-sm text-gray-900">{tenant._count.callLogs}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <Link href={`/admin/tenant/${tenant.id}`} className="text-indigo-600 hover:text-indigo-900">
-                                            Manage
-                                        </Link>
+                                        <div className="flex justify-end gap-3">
+                                            <Link href={`/admin/tenant/${tenant.id}`} className="text-indigo-600 hover:text-indigo-900">
+                                                Manage
+                                            </Link>
+                                            <form action={async () => {
+                                                'use server'
+                                                const { impersonateTenant } = await import('../../actions/auth')
+                                                await impersonateTenant(tenant.id)
+                                            }}>
+                                                <button type="submit" className="text-amber-600 hover:text-amber-900 border border-amber-200 px-2 py-1 rounded text-xs bg-amber-50">
+                                                    Impersonate
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
