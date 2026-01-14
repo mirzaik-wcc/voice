@@ -64,7 +64,7 @@ export default async function AdminDashboard() {
                                             </Link>
                                             <form action={async () => {
                                                 'use server'
-                                                const { impersonateTenant } = await import('../../actions/auth')
+                                                const { impersonateTenant } = await import('../actions/auth')
                                                 await impersonateTenant(tenant.id)
                                             }}>
                                                 <button type="submit" className="text-amber-600 hover:text-amber-900 border border-amber-200 px-2 py-1 rounded text-xs bg-amber-50">
